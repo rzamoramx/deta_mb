@@ -5,7 +5,7 @@ from persistance.MessagePersistenceModel import MessagePersistenceModel
 
 class MessagePersistenceInterface(ABC):
     @abstractmethod
-    def set(self, msg: MessagePersistenceModel) -> str:
+    def set(self, msg: MessagePersistenceModel) -> dict:
         pass
 
     @abstractmethod

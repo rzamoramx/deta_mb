@@ -5,7 +5,7 @@ from api.rest.v1 import router_v1
 
 app = FastAPI()
 
-app.include_router(router_v1, prefix="v1")
+app.include_router(router_v1, prefix="/v1")
 
 
 @app.get("/ping")
