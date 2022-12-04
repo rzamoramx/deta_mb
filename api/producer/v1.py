@@ -1,10 +1,10 @@
 
-import json
+import asyncio
 from fastapi import APIRouter, Request, Depends, Response, status
-import api.rest.request_models as rm
-from api.rest.response_models import SendMsgResponseModel, GenericResponse
+import api.producer.request_models as rm
+from api.producer.response_models import SendMsgResponseModel, GenericResponse
 from persistance.MessagePersistenceModel import MessagePersistenceModel
-from core.Broker import process_message, make_topic, make_subscription, deliver_message
+from core.broker import process_message, make_topic, make_subscription, deliver_mgs_for_push
 from api.protobuf.deta_mb_pb2 import Msg
 
 router_v1 = APIRouter()
@@ -17,7 +17,7 @@ async def parse_body(request: Request):
 
 @router_v1.post("/register_subs")
 def register_subscription(subs: rm.SubscriptionModel, response: Response):
-    if make_subscription(subs.name, subs.endpoint, subs.topic):
+    if make_subscription(subs.name, subs.endpoint, subs.topic, subs.type_consuming):
         return GenericResponse(status="OK", detail="subscription created")
     else:
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -37,23 +37,12 @@ def register_topic(topic: rm.TopicModel, response: Response):
 async def send_message(response: Response, data: bytes = Depends(parse_body)):
     msg = Msg()
     msg.ParseFromString(data)
-    persist_model = MessagePersistenceModel(msg.topic, msg.type_consuming, msg.payload, msg.timestamp)
+    persist_model = MessagePersistenceModel(msg.topic, msg.payload, msg.timestamp)
     msg_id = process_message(persist_model)
-    if msg_id is None:
+    if msg_id == "":
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return SendMsgResponseModel(id="", ack=False, detail="error, retry later")
     else:
-        deliver_message(msg_id, persist_model)
+        # try to deliver message
+        asyncio.run(deliver_mgs_for_push(msg))
         return SendMsgResponseModel(id=msg_id, ack=True, detail="published")
-
-
-def get_message_model(json_dct: dict) -> rm.MessageModel:
-    # return namedtuple('X', json_dct.keys())(*json_dct.values())
-    msg = rm.MessageModel(
-        topic=json_dct['topic'],
-        type_consuming=json_dct['type_consuming'],
-        payload=json_dct['payload'],
-        timestamp=json_dct['timestamp'],
-    )
-
-    return msg

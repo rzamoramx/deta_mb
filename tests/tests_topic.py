@@ -1,7 +1,7 @@
 
 import unittest
 import requests
-from api.rest.request_models import TopicModel
+from api.producer.request_models import TopicModel
 
 
 class Topic(unittest.TestCase):

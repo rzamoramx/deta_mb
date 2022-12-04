@@ -2,13 +2,14 @@ syntax = "proto3";
 
 package detamb;
 
-// note, for Response.acked values 1 and 2, and Message.type value 1 is required implement persistence
-
 message Msg {
   string topic = 1;
-  int32 type_consuming = 2; // 0 = push (consumer must enable a endpoint to receive message), 1 = pull (consumer will be pulling messages)
   string payload = 3; // string json representation
   int64 timestamp = 4;
+}
+
+message RespPulling {
+  repeated Msg messages = 1;
 }
 
 message Resp {

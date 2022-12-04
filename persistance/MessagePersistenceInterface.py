@@ -7,6 +7,18 @@ from persistance.SubscriptionPersistenceModel import SubscriptionPersistenceMode
 
 class MessagePersistenceInterface(ABC):
     @abstractmethod
+    def update_msg(self, msg: MessagePersistenceModel) -> bool:
+        pass
+
+    @abstractmethod
+    def get_subs_by_id(self, sub_id: str) -> dict:
+        pass
+
+    @abstractmethod
+    def get_subs_by_ttc(self, topic_name: str, type_consuming: str) -> [dict]:
+        pass
+
+    @abstractmethod
     def set_subs(self, sub: SubscriptionPersistenceModel) -> dict:
         pass
 
@@ -19,5 +31,5 @@ class MessagePersistenceInterface(ABC):
         pass
 
     @abstractmethod
-    def get_unacked(self) -> list[MessagePersistenceModel]:
+    def get_unacked_by_topic(self, topic_id: str) -> list[dict]:
         pass

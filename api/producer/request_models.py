@@ -6,6 +6,7 @@ class SubscriptionModel(BaseModel):
     name: str
     endpoint: str
     topic: str
+    type_consuming: str  # "PULL" or "PUSH"
 
 
 class TopicModel(BaseModel):
@@ -15,7 +16,6 @@ class TopicModel(BaseModel):
 class MessageModel(BaseModel):
     # id: Union[str, None] = None
     topic: str
-    type_consuming: str
     payload: str
     # timestamp: Union[int, None] = None
     timestamp: int
