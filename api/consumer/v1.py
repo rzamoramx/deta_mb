@@ -45,6 +45,6 @@ def push_msg(msg_bin, url: str):
     if 200 <= res.status_code < 300:
         print(f'FAILED to deliver message: {res}')
     else:
-        raise Exception(f"ERROR cannot deliver message after retries, response code from client: {res}")
+        raise Exception(f"ERROR cannot deliver message, response code from client: {res}")
 
     print(f'LOG: response from client: {res.content}')

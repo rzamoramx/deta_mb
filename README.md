@@ -1,2 +1,6 @@
 # Deta_ MB
-An experimental message broker for Deta Cloud
+An experimental, simply and naive message broker for Deta Cloud 
+
+# Features
+
+Enjoy!

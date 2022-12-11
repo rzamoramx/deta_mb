@@ -10,6 +10,7 @@ class SubscriptionPersistenceModel(object):
     ts: int
     name: str
     endpoint: str
+    can_consume: bool  # disable fro consuming
 
     def __init__(self, name: str, topic: str, type_consuming: str, endpoint: str, subs_id: str = ""):
         if subs_id == "":
@@ -19,3 +20,4 @@ class SubscriptionPersistenceModel(object):
         self.ts = round(time.time() * 1000)
         self.name = name
         self.endpoint = endpoint
+        self.can_consume = True
