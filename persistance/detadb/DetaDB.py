@@ -7,6 +7,7 @@ from persistance.TopicPersistenceModel import TopicPersistenceModel
 from persistance.SubscriptionPersistenceModel import SubscriptionPersistenceModel
 from config.configs import detadb_settings as db_conf
 from deta import Deta
+from persistance.exceptions import *
 
 
 class DetaDB(MessagePersistenceInterface):
@@ -19,6 +20,38 @@ class DetaDB(MessagePersistenceInterface):
         self.db_msgs = deta_i.Base('deta_mb_msgs')
         self.db_topics = deta_i.Base('deta_mb_topics')
         self.db_subs = deta_i.Base('deta_mb_subs')
+
+    def get_subscription(self, key: str) -> SubscriptionPersistenceModel:
+        subs = self.db_subs.get(key)
+        if subs is None:
+            raise SubscriptionNotFound
+        return SubscriptionPersistenceModel.from_db(**subs)
+
+    def upd_subscription(self, key: str, subscription: SubscriptionPersistenceModel) -> dict:
+        updates = {}
+        for attr, val in subscription.__dict__.items():
+            updates[attr] = val
+
+        try:
+            return self.db_subs.update(updates, key)
+        except Exception as e:
+            raise CannotUpdateSubscription(f'Cannot update subscription {key}, detail: {e}')
+
+    def get_topic(self, key: str) -> TopicPersistenceModel:
+        topic = self.db_topics.get(key)
+        if topic is None:
+            raise TopicNotFound
+        return TopicPersistenceModel.from_db(**topic)
+
+    def upd_topic(self, key: str, topic: TopicPersistenceModel) -> dict:
+        updates = {}
+        for attr, val in topic.__dict__.items():
+            updates[attr] = val
+
+        try:
+            return self.db_topics.update(updates, key)
+        except Exception as e:
+            raise CannotUpdateTopic(f'Cannot update topic {key}, detail: {e}')
 
     def update_msg(self, msg: MessagePersistenceModel) -> bool:
         try:
@@ -40,12 +73,18 @@ class DetaDB(MessagePersistenceInterface):
     def set_subs(self, sub: SubscriptionPersistenceModel) -> dict:
         if sub.id is None or sub.id == "":
             sub.id = str(uuid.uuid4())
-        return self.db_subs.put(sub.__dict__, sub.id)
+        try:
+            return self.db_subs.insert(sub.__dict__, sub.id)
+        except Exception:
+            raise SubscriptionAlreadyExists
 
     def set_topic(self, entity: TopicPersistenceModel, key: str = "") -> dict:
         if key == "":
             key = str(uuid.uuid4())
-        return self.db_topics.put(entity.__dict__, key)
+        try:
+            return self.db_topics.insert(entity.__dict__, key)
+        except Exception:
+            raise TopicAlreadyExists
 
     def set_message(self, msg: MessagePersistenceModel) -> dict:
         if msg.id == "" or msg.id is None:

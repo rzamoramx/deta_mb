@@ -10,10 +10,11 @@ class SubscriptionPersistenceModel(object):
     ts: int
     name: str
     endpoint: str
-    can_consume: bool  # disable fro consuming
+    can_consume: bool  # disable from consuming
+    key: str  # DetaDB field
 
-    def __init__(self, name: str, topic: str, type_consuming: str, endpoint: str, subs_id: str = ""):
-        if subs_id == "":
+    def __init__(self, name: str, topic: str, type_consuming: str, endpoint: str, id: str = ""):
+        if id == "":
             self.id = str(uuid.uuid4())
         self.topic = topic
         self.type_consuming = type_consuming
@@ -21,3 +22,11 @@ class SubscriptionPersistenceModel(object):
         self.name = name
         self.endpoint = endpoint
         self.can_consume = True
+
+    @classmethod
+    def from_db(cls, id: str, topic: str, type_consuming: str, ts: int, name: str, endpoint: str, can_consume: bool, key: str):
+        instance = cls(name, topic, type_consuming, endpoint, id)
+        instance.ts = ts
+        instance.can_consume = can_consume
+        instance.key = key
+        return instance

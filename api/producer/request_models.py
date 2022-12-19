@@ -2,6 +2,17 @@
 from pydantic import BaseModel
 
 
+class SubscriptionManageModel(BaseModel):
+    name: str
+    can_consume: bool
+
+
+class TopicManageModel(BaseModel):
+    topic: str
+    can_produce: bool
+    can_consume: bool
+
+
 class SubscriptionModel(BaseModel):
     name: str
     endpoint: str

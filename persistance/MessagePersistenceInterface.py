@@ -7,6 +7,22 @@ from persistance.SubscriptionPersistenceModel import SubscriptionPersistenceMode
 
 class MessagePersistenceInterface(ABC):
     @abstractmethod
+    def get_subscription(self, key: str) -> SubscriptionPersistenceModel:
+        pass
+
+    @abstractmethod
+    def upd_subscription(self, key: str, subscription: SubscriptionPersistenceModel) -> dict:
+        pass
+
+    @abstractmethod
+    def get_topic(self, key: str) -> TopicPersistenceModel:
+        pass
+
+    @abstractmethod
+    def upd_topic(self, key: str, topic: TopicPersistenceModel) -> dict:
+        pass
+
+    @abstractmethod
     def update_msg(self, msg: MessagePersistenceModel) -> bool:
         pass
 
