@@ -16,6 +16,9 @@ def manage_subscription(subscription: rm.SubscriptionManageModel, response: Resp
     except SubscriptionNotFound:
         response.status_code = status.HTTP_404_NOT_FOUND
         return GenericResponse(detail="subscription not found")
+    except CannotUpdateSubscription as e:
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return GenericResponse(detail=str(e))
     except Exception as e:
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return GenericResponse(detail=f"unexpected exception: {e}")
@@ -29,6 +32,9 @@ def manage_topic(topic: rm.TopicManageModel, response: Response):
     except TopicNotFound:
         response.status_code = status.HTTP_404_NOT_FOUND
         return GenericResponse(detail="topic not found")
+    except CannotUpdateTopic as e:
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return GenericResponse(detail=str(e))
     except Exception as e:
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return GenericResponse(detail=f"unexpected exception: {e}")
@@ -37,13 +43,10 @@ def manage_topic(topic: rm.TopicManageModel, response: Response):
 @manager_v1.post("/register_subs")
 def register_subscription(subs: rm.SubscriptionModel, response: Response):
     try:
-        if make_subscription(subs.name, subs.endpoint, subs.topic, subs.type_consuming):
-            return GenericResponse(status="OK", detail="subscription created")
-        else:
-            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return GenericResponse()
+        make_subscription(subs.name, subs.endpoint, subs.topic, subs.type_consuming)
+        return GenericResponse(status="OK", detail="subscription created")
     except SubscriptionAlreadyExists as e:
-        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        response.status_code = status.HTTP_406_NOT_ACCEPTABLE
         return GenericResponse(detail=str(e))
     except Exception as e:
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -53,13 +56,10 @@ def register_subscription(subs: rm.SubscriptionModel, response: Response):
 @manager_v1.post("/register_topic")
 def register_topic(topic: rm.TopicModel, response: Response):
     try:
-        if make_topic(topic.name):
-            return GenericResponse(status="OK", detail="topic created")
-        else:
-            response.status_code = status.HTTP_400_BAD_REQUEST
-            return GenericResponse()
+        make_topic(topic.name)
+        return GenericResponse(status="OK", detail="topic created")
     except TopicAlreadyExists as e:
-        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        response.status_code = status.HTTP_406_NOT_ACCEPTABLE
         return GenericResponse(detail=str(e))
     except Exception as e:
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -1,9 +1,13 @@
 
 import uuid
 import time
-from persistance.MessagePersistenceModel import MessagePersistenceModel
 
+from persistance.MessagePersistenceModel import MessagePersistenceModel
+from persistance.LogSubsPersistenceModel import LogSubsPersistenceModel
 from persistance.detadb.DetaDB import DetaDB
+from persistance.exceptions import *
+from api.protobuf.deta_mb_pb2 import Msg, RespPulling
+
 from api.consumer.v1 import push_msg
 from core.utils import retry_with_params
 from api.protobuf.deta_mb_pb2 import Msg
@@ -11,59 +15,82 @@ from api.protobuf.deta_mb_pb2 import Msg
 db = DetaDB()
 
 
-def process_message(msg: MessagePersistenceModel) -> str:
+def process_message(msg: MessagePersistenceModel) -> (str, str):
+    """
+    process message (publisher), persist and deliver it to push subscribers
+    :param msg: an instance of MessagePersistenceModel
+    :return: tuple (id of message, array of results for each subscription)
+    """
+    results_subs = []
     msg.id = str(uuid.uuid4())
     msg.acked = False
     msg.ts_publisher_ack = round(time.time() * 1000)
-    try:
-        result = db.set_message(msg)
-        if result is not None:
-            return result['id']
-    except Exception as e:
-        print(f'Error occurred on process_message(): {e}')
+
+    # backup message
+    res = db.set_message(msg)
+
+    # prepare message for delivery
+    msg_proto = Msg()
+    msg_proto.topic = msg.topic
+    msg_proto.payload = msg.payload
+    msg_proto.timestamp = round(time.time() * 1000)
+    msg_bin = msg_proto.SerializeToString(msg_proto)
+
+    # for each subscription
+    subs = db.get_subs_by_topic(msg.topic)
+    for sub in subs:
+        log_subs_persistence = LogSubsPersistenceModel(sub['id'], msg.topic, msg)
+
+        # persist a copy of message in log_subs_msg and try to deliver it, only for PUSH subs
+        if sub['type_consuming'] == "PUSH":
+            results_subs.append(atomic_deliver_msgs_for_push(msg_bin, sub, log_subs_persistence))
+
+    return res['id'], results_subs
+
+
+def atomic_deliver_msgs_for_push(msg_bin, sub: dict, log_subs_persistence: LogSubsPersistenceModel) -> str:
+    db.set_log_subs_message(log_subs_persistence)
+
+    if sub['type_consuming'] == "PUSH":
+        try:
+            res = push_msg(msg_bin, sub['endpoint'])
+            if res:
+                ack_message_for_subscription(log_subs_persistence, sub['id'])
+        except Exception as ex:
+            return str(ex)
     return ""
 
 
-def deliver_msgs_for_pulling(topic: str, sub_id: str) -> [MessagePersistenceModel]:
+def deliver_msgs_for_pulling(topic: str, sub_id: str) -> RespPulling:
     sub = db.get_subs_by_id(sub_id)
     if sub is None:
-        raise Exception(f"subscription not found: {sub_id}, register it before")
+        raise SubscriptionNotFound(f"subscription not found: {sub_id}, register it before")
 
     if sub['topic'] != topic:
         raise Exception(f"this subscription: {sub}, isn't registered to topic: {topic}")
 
-    list_msgs = []
-    # TODO: change this logic, the messages deliver at subscription level not message level, so for pulling subs
-    # check messages unacked for actual subscription
-    for msg in db.get_unacked_by_topic(topic):
-        msg_pm = MessagePersistenceModel(msg['topic'], msg['payload'], msg['ts_published'])
-        msg_pm.acked = False
-        msg_pm.ts_consumer_ack = round(time.time() * 1000)
-        msg_pm.id = msg['id']
-        list_msgs.append(msg_pm)
-    return list_msgs
+    resp_pulling = RespPulling()
+    # get messages pending to deliver for actual subscription
+    for msg in db.get_log_subs_mgs_by_sub_id_topic(sub_id, topic):
+        """msg_pm = MessagePersistenceModel(msg['message']['topic_id'], 
+                                         msg['message']['payload'], 
+                                         msg['message']['ts_published'])"""
+        msg_pm = MessagePersistenceModel(**msg['message'])
+        msg_proto = Msg()
+        msg_proto.topic = msg_pm.topic
+        msg_proto.payload = msg_pm.payload
+        msg_proto.timestamp = round(time.time() * 1000)
+        msg_proto.log_subs_msg_id = msg['id']
+
+        resp_pulling.messages.append(msg_proto)
+
+    return resp_pulling
 
 
 @retry_with_params(2)
-def ack_message(msg: MessagePersistenceModel):
+def ack_message_for_subscription(msg: LogSubsPersistenceModel):
+    """this method acknowledge message as a consumer, not a publisher"""
     msg.acked = True
-    if not db.update_msg(msg):
-        raise Exception(f"error during update, retrying, msg.id: {msg.id}")
+    msg.ts_consumed = round(time.time() * 1000)
+    db.update_log_subs(msg)
 
-
-async def deliver_mgs_for_push(msg_pm: MessagePersistenceModel):
-    msg_proto = Msg()
-    msg_proto.topic = msg_pm.topic
-    msg_proto.payload = msg_pm.payload
-    msg_proto.timestamp = round(time.time() * 1000)
-    msg_bin = msg_proto.SerializeToString(msg_proto)
-
-    subs = db.get_subs_by_ttc(msg_pm.topic, "PUSH")
-    for sub in subs:
-        try:
-            push_msg(msg_bin, msg_pm, sub['endpoint'])
-            # TODO: ack message for actual subscription if ok (so create model field and logic)
-        except Exception as ex:
-            print(ex)
-    # TODO: ack message occurs at subscription level not at message level (so remove logic and fields in model)
-    ack_message(msg_pm)

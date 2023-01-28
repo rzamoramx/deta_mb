@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class GenericResponse(BaseModel):
-    status: Union[str, None] = Field(default="NOK")
+    status: Union[str, None] = Field(default="ERROR")
     detail: Union[str, None] = Field(default="error, retry later")
 
 

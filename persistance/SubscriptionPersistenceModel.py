@@ -10,7 +10,7 @@ class SubscriptionPersistenceModel(object):
     ts: int
     name: str
     endpoint: str
-    can_consume: bool  # disable from consuming
+    can_consume: bool  # disable to consume
     key: str  # DetaDB field
 
     def __init__(self, name: str, topic: str, type_consuming: str, endpoint: str, id: str = ""):

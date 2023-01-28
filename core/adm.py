@@ -19,9 +19,11 @@ def manage_topic_enable_disable(topic: str, can_produce: bool, can_consume: bool
     db.upd_topic(topic, topic_i)
 
 
-def make_topic(topic_name: str) -> dict:
-    return  db.set_topic(TopicPersistenceModel(topic_name), topic_name)
+def make_topic(topic_name: str):
+    """save topic to db, throw an exception if key already exists"""
+    db.set_topic(TopicPersistenceModel(topic_name), topic_name)
 
 
-def make_subscription(sub_name: str, endpoint: str, topic: str, type_consuming: str) -> dict:
-    return db.set_subs(SubscriptionPersistenceModel(sub_name, topic, type_consuming, endpoint))
+def make_subscription(sub_name: str, endpoint: str, topic: str, type_consuming: str):
+    """save subscription to db, throw an exception if key already exists"""
+    db.set_subs(SubscriptionPersistenceModel(sub_name, topic, type_consuming, endpoint))
