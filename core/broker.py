@@ -5,12 +5,11 @@ import time
 from persistance.MessagePersistenceModel import MessagePersistenceModel
 from persistance.LogSubsPersistenceModel import LogSubsPersistenceModel
 from persistance.detadb.DetaDB import DetaDB
-from persistance.exceptions import *
+import persistance.exceptions as ex
 from api.protobuf.deta_mb_pb2 import Msg, RespPulling
 
 from api.consumer.v1 import push_msg
 from core.utils import retry_with_params
-from api.protobuf.deta_mb_pb2 import Msg
 
 db = DetaDB()
 
@@ -56,25 +55,21 @@ def atomic_deliver_msgs_for_push(msg_bin, sub: dict, log_subs_persistence: LogSu
             res = push_msg(msg_bin, sub['endpoint'])
             if res:
                 ack_message_for_subscription(log_subs_persistence, sub['id'])
-        except Exception as ex:
-            return str(ex)
+        except Exception as e:
+            return str(e)
     return ""
 
 
-def deliver_msgs_for_pulling(topic: str, sub_id: str) -> RespPulling:
-    sub = db.get_subs_by_id(sub_id)
-    if sub is None:
-        raise SubscriptionNotFound(f"subscription not found: {sub_id}, register it before")
+def ack_msgs_for_pulling(topic: str, sub_id: str, list_log_subs: [str]):
+    validations(topic, sub_id)
 
-    if sub['topic'] != topic:
-        raise Exception(f"this subscription: {sub}, isn't registered to topic: {topic}")
+
+def deliver_msgs_for_pulling(topic: str, sub_id: str) -> RespPulling:
+    validations(topic, sub_id)
 
     resp_pulling = RespPulling()
     # get messages pending to deliver for actual subscription
     for msg in db.get_log_subs_mgs_by_sub_id_topic(sub_id, topic):
-        """msg_pm = MessagePersistenceModel(msg['message']['topic_id'], 
-                                         msg['message']['payload'], 
-                                         msg['message']['ts_published'])"""
         msg_pm = MessagePersistenceModel(**msg['message'])
         msg_proto = Msg()
         msg_proto.topic = msg_pm.topic
@@ -94,3 +89,11 @@ def ack_message_for_subscription(msg: LogSubsPersistenceModel):
     msg.ts_consumed = round(time.time() * 1000)
     db.update_log_subs(msg)
 
+
+def validations(topic: str, sub_id: str):
+    sub = db.get_subs_by_id(sub_id)
+    if sub is None:
+        raise ex.SubscriptionNotFound(f"subscription not found: {sub_id}, register it before")
+
+    if sub['topic'] != topic:
+        raise Exception(f"this subscription: {sub}, isn't registered to topic: {topic}")

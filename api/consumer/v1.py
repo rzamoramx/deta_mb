@@ -1,5 +1,4 @@
 
-import time
 import requests
 
 from core.utils import retry_with_params
